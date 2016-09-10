@@ -3,12 +3,14 @@
 
 PKG             := numpy
 $(PKG)_IGNORE   :=
-$(PKG)_CHECKSUM := c36c471f44cf914abdf37137d158bf3ffa460141
+$(PKG)_VERSION  := 1.6.2
+$(PKG)_CHECKSUM := 0b83d96ab79711b548470b7aeee1272c4ba8fcbba6586a67116b566a21ed16c6
 $(PKG)_SUBDIR   := $(PKG)-$($(PKG)_VERSION)
 $(PKG)_FILE     := $(PKG)-$($(PKG)_VERSION).tar.gz
 $(PKG)_URL      := https://sourceforge.net/projects/numpy/files/NumPy/$($(PKG)_VERSION)/$($(PKG)_FILE)/download
 $(PKG)_DEPS     := gcc python 
 
+PATH_TO_HOST_PYTHON := $(PREFIX)/share/$($(PKG)_SUBDIR)
 
 define $(PKG)_UPDATE
     wget -q -O- 'http://sourceforge.net/projects/numpy/files/NumPy/' | \
@@ -19,8 +21,6 @@ endef
 define $(PKG)_BUILD
 
 	cd '$(1)'
-
-	exit -1 
 
 endef
 
