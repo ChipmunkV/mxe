@@ -55,20 +55,6 @@ diff -urN a-3.3.0/Lib/distutils/sysconfig.py.rej b-3.3.0/Lib/distutils/sysconfig
 +              base = project_base
 +              if (not os.path.isabs(_config_vars['srcdir']) and
 +                  base != os.getcwd()):
-diff -urN a-3.3.0/Makefile.pre.in b-3.3.0/Makefile.pre.in
---- a-3.3.0/Makefile.pre.in	Fri Nov 16 23:41:50 2012
-+++ b-3.3.0/Makefile.pre.in	Fri Nov 16 23:54:02 2012
-@@ -474,6 +474,10 @@
- 	$(RUNSHARED) $(PYTHON_FOR_BUILD) -S -m sysconfig --generate-posix-vars
- 
- # Build the shared modules
-+# The current py-code in case of cross-compilation (mingw on linux) will create
-+# modules with .so suffix and SO environment variable cannot help as
-+# the modules are linked with gcc instead *-mingw*-gcc.
-+# FIXME: in cross-compilation environment how to select correct compiler/linker ?
- sharedmods: $(BUILDPYTHON) $(SYSCONFIGDATA)
- 	case $$MAKEFLAGS in *s*) quiet=-q; esac; \
- 	$(RUNSHARED) CC='$(CC)' LDSHARED='$(BLDSHARED)' OPT='$(OPT)' \
 diff -urN a-3.3.0/Modules/_ctypes/callproc.c b-3.3.0/Modules/_ctypes/callproc.c
 --- a-3.3.0/Modules/_ctypes/callproc.c	Fri Nov 16 23:41:50 2012
 +++ b-3.3.0/Modules/_ctypes/callproc.c	Fri Nov 16 23:52:13 2012
@@ -102,22 +88,6 @@ diff -urN a-3.3.0/Modules/_ctypes/callproc.c b-3.3.0/Modules/_ctypes/callproc.c
 diff -urN a-3.3.0/Modules/_ctypes/libffi/fficonfig.py.in b-3.3.0/Modules/_ctypes/libffi/fficonfig.py.in
 --- a-3.3.0/Modules/_ctypes/libffi/fficonfig.py.in	Fri Nov 16 23:41:50 2012
 +++ b-3.3.0/Modules/_ctypes/libffi/fficonfig.py.in	Fri Nov 16 23:52:13 2012
-@@ -1,7 +1,6 @@
- ffi_sources = """
- src/prep_cif.c
- src/closures.c
--src/dlmalloc.c
- """.split()
- 
- ffi_platforms = {
-@@ -23,6 +22,7 @@
-     'FRV': ['src/frv/eabi.S', 'src/frv/ffi.c'],
-     'S390': ['src/s390/sysv.S', 'src/s390/ffi.c'],
-     'X86_64': ['src/x86/ffi64.c', 'src/x86/unix64.S', 'src/x86/ffi.c', 'src/x86/sysv.S'],
-+    'X86_WIN64': ['src/x86/ffi.c', 'src/x86/win64.S'],
-     'SH': ['src/sh/sysv.S', 'src/sh/ffi.c'],
-     'SH64': ['src/sh64/sysv.S', 'src/sh64/ffi.c'],
-     'PA': ['src/pa/linux.S', 'src/pa/ffi.c'],
 @@ -30,6 +30,9 @@
      'PA_HPUX': ['src/pa/hpux32.S', 'src/pa/ffi.c'],
  }

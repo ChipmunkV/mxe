@@ -3,19 +3,19 @@
 
 PKG             := python
 $(PKG)_IGNORE   :=
-$(PKG)_VERSION  := 3.3.0
-$(PKG)_CHECKSUM := 3e1464bc2c1dfa74287bc58da81168f50b0ae5c7
+$(PKG)_VERSION  := 3.4.0
+$(PKG)_CHECKSUM := f13686c0a2d45e7146759e9d5d1cbd8097a0606483c0cf7730e1e13f58b14cbe
 $(PKG)_SUBDIR   := Python-$($(PKG)_VERSION)
-$(PKG)_FILE     := Python-$($(PKG)_VERSION).tar.bz2
+$(PKG)_FILE     := Python-$($(PKG)_VERSION).tar.xz
 $(PKG)_URL      := http://python.org/ftp/python/$($(PKG)_VERSION)/$($(PKG)_FILE)
 $(PKG)_DEPS     := gcc libiconv zlib
 
 PATH_TO_HOST_PYTHON := $(PREFIX)/share/$($(PKG)_SUBDIR)
 
 define $(PKG)_UPDATE
-    wget -q -O- 'http://python.org/download/releases/' | \
-    $(SED) -n 's_.*">Python \(3.3.[0-9]\)</a>.*_\1_ip' | \
-    head -1
+    wget -q -O- 'http://python.org/downloads/' | \
+    $(SED) -n 's_.*">Python \(3.4.[0-9]\)</a>.*_\1_ip' | \
+    tail -1
 endef
 
 define $(PKG)_BUILD
@@ -25,7 +25,7 @@ define $(PKG)_BUILD
 		echo "Built host python and Parser/pgen in $(PATH_TO_HOST_PYTHON)";  \
 		( cd $$(dirname $(PATH_TO_HOST_PYTHON)) && tar xf $(PWD)/pkg/$($(PKG)_FILE) ); \
 		( cd $(PATH_TO_HOST_PYTHON) && \
-			./configure && \
+			./configure --disable-ipv6 && \
 			$(MAKE) python Parser/pgen Modules/_freeze_importlib \
 			) ; \
 	fi

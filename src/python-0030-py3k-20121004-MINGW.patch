@@ -23,35 +23,6 @@ diff -urN a-3.3.0/Include/node.h b-3.3.0/Include/node.h
  #endif
  
  /* Node access functions */
-diff -urN a-3.3.0/Include/objimpl.h b-3.3.0/Include/objimpl.h
---- a-3.3.0/Include/objimpl.h	Fri Nov 16 22:45:28 2012
-+++ b-3.3.0/Include/objimpl.h	Fri Nov 16 22:45:41 2012
-@@ -253,6 +253,12 @@
-         Py_ssize_t gc_refs;
-     } gc;
-     long double dummy;  /* force worst-case alignment */
-+#if defined(__MINGW32__)
-+/* FIXME: what about 64-bit platforms ?
-+ * see http://mail.python.org/pipermail/python-dev/2009-July/090724.html
-+ */
-+	double dummy1;
-+#endif
- } PyGC_Head;
- 
- extern PyGC_Head *_PyGC_generation0;
-diff -urN a-3.3.0/Include/osdefs.h b-3.3.0/Include/osdefs.h
---- a-3.3.0/Include/osdefs.h	Fri Nov 16 22:45:28 2012
-+++ b-3.3.0/Include/osdefs.h	Fri Nov 16 22:45:41 2012
-@@ -17,7 +17,9 @@
- #else
- #define SEP L'\\'
- #define ALTSEP L'/'
-+#ifndef MAXPATHLEN
- #define MAXPATHLEN 256
-+#endif
- #endif
- #define DELIM L';'
- #endif
 diff -urN a-3.3.0/Include/pymath.h b-3.3.0/Include/pymath.h
 --- a-3.3.0/Include/pymath.h	Fri Nov 16 22:45:28 2012
 +++ b-3.3.0/Include/pymath.h	Fri Nov 16 22:45:41 2012
@@ -415,10 +386,12 @@ diff -urN a-3.3.0/Lib/distutils/command/build_ext.py b-3.3.0/Lib/distutils/comma
          if sys.platform == "win32":
              from distutils.msvccompiler import MSVCCompiler
              if not isinstance(self.compiler, MSVCCompiler):
-@@ -722,7 +753,8 @@
-             # don't extend ext.libraries, it may be shared with other
-             # extensions, it is a reference to the original list
-             return ext.libraries + [pythonlib]
+@@ -722,9 +753,10 @@
+                 # don't extend ext.libraries, it may be shared with other
+                 # extensions, it is a reference to the original list
+                 return ext.libraries + [pythonlib]
+             else:
+                 return ext.libraries
 -        elif sys.platform[:6] == "cygwin":
 +        # NOTE : cygwin use posix build rules ;)
 +        elif sys.platform[:6] == "cygwin" and False:
@@ -555,9 +528,9 @@ diff -urN a-3.3.0/Lib/distutils/sysconfig.py b-3.3.0/Lib/distutils/sysconfig.py
 +            posix_build = True
  
 +    if posix_build == True:
-         (cc, cxx, opt, cflags, ccshared, ldshared, so_ext, ar, ar_flags) = \
+         (cc, cxx, opt, cflags, ccshared, ldshared, shlib_suffix, ar, ar_flags) = \
              get_config_vars('CC', 'CXX', 'OPT', 'CFLAGS',
-                             'CCSHARED', 'LDSHARED', 'SO', 'AR', 'ARFLAGS')
+                             'CCSHARED', 'LDSHARED', 'SHLIB_SUFFIX', 'AR', 'ARFLAGS')
 @@ -234,7 +247,8 @@
  def get_config_h_filename():
      """Return full pathname of installed pyconfig.h file."""
@@ -600,7 +573,7 @@ diff -urN a-3.3.0/Lib/distutils/sysconfig.py b-3.3.0/Lib/distutils/sysconfig.py
          # from a different directory.
 -        if python_build and os.name == "posix":
 +        if python_build and posix_build:
-             base = os.path.dirname(os.path.abspath(sys.executable))
+             base = project_base
              if (not os.path.isabs(_config_vars['srcdir']) and
                  base != os.getcwd()):
 diff -urN a-3.3.0/Lib/distutils/tests/support.py b-3.3.0/Lib/distutils/tests/support.py
@@ -669,17 +642,6 @@ diff -urN a-3.3.0/Lib/distutils/tests/test_bdist_msi.py b-3.3.0/Lib/distutils/te
          project_dir, dist = self.create_dist()
          cmd = bdist_msi(dist)
          cmd.ensure_finalized()
-diff -urN a-3.3.0/Lib/distutils/tests/test_config_cmd.py b-3.3.0/Lib/distutils/tests/test_config_cmd.py
---- a-3.3.0/Lib/distutils/tests/test_config_cmd.py	Fri Nov 16 22:45:28 2012
-+++ b-3.3.0/Lib/distutils/tests/test_config_cmd.py	Fri Nov 16 22:45:41 2012
-@@ -38,6 +38,7 @@
-         self.assertEqual(len(self._logs), numlines+1)
- 
-     def test_search_cpp(self):
-+        # TODO: mingw host ?
-         if sys.platform == 'win32':
-             return
-         pkg_dir, dist = self.create_dist()
 diff -urN a-3.3.0/Lib/distutils/tests/test_cygwinccompiler.py b-3.3.0/Lib/distutils/tests/test_cygwinccompiler.py
 --- a-3.3.0/Lib/distutils/tests/test_cygwinccompiler.py	Fri Nov 16 22:45:28 2012
 +++ b-3.3.0/Lib/distutils/tests/test_cygwinccompiler.py	Fri Nov 16 22:45:41 2012
@@ -739,7 +701,7 @@ diff -urN a-3.3.0/Lib/sysconfig.py b-3.3.0/Lib/sysconfig.py
              # sys.abiflags may not be defined on all platforms.
              _CONFIG_VARS['abiflags'] = ''
  
--        if os.name in ('nt', 'os2'):
+-        if os.name == 'nt':
 -            _init_non_posix(_CONFIG_VARS)
 +        # GCC(mingw) use posix build system
 +        posix_build = False
@@ -763,38 +725,6 @@ diff -urN a-3.3.0/Lib/sysconfig.py b-3.3.0/Lib/sysconfig.py
              if _PYTHON_BUILD:
                  # If srcdir is a relative path (typically '.' or '..')
                  # then it should be interpreted relative to the directory
-diff -urN a-3.3.0/Lib/test/test_capi.py b-3.3.0/Lib/test/test_capi.py
---- a-3.3.0/Lib/test/test_capi.py	Fri Nov 16 22:45:30 2012
-+++ b-3.3.0/Lib/test/test_capi.py	Fri Nov 16 22:45:42 2012
-@@ -217,20 +217,21 @@
- class EmbeddingTest(unittest.TestCase):
- 
-     @unittest.skipIf(
--        sys.platform.startswith('win'),
--        "test doesn't work under Windows")
-+        sys.platform.startswith('win') and sys.version.find('GCC') < 0,
-+        "test doesn't work with MSVC")
-     def test_subinterps(self):
--        # XXX only tested under Unix checkouts
--        basepath = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-+        # XXX only tested under Posix checkouts
-+        basepath = support.SAVEDCWD
-         oldcwd = os.getcwd()
-         # This is needed otherwise we get a fatal error:
-         # "Py_Initialize: Unable to get the locale encoding
-         # LookupError: no codec search functions registered: can't find encoding"
-         os.chdir(basepath)
-         try:
--            exe = os.path.join(basepath, "Modules", "_testembed")
--            if not os.path.exists(exe):
--                self.skipTest("%r doesn't exist" % exe)
-+            from distutils.spawn import find_executable
-+            exe = find_executable("_testembed", basepath)
-+            if not exe:
-+                self.skipTest("_testembed executable not found")
-             p = subprocess.Popen([exe],
-                                  stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE)
 diff -urN a-3.3.0/Lib/test/test_curses.py b-3.3.0/Lib/test/test_curses.py
 --- a-3.3.0/Lib/test/test_curses.py	Fri Nov 16 22:45:30 2012
 +++ b-3.3.0/Lib/test/test_curses.py	Fri Nov 16 22:45:42 2012
@@ -835,17 +765,17 @@ diff -urN a-3.3.0/Lib/test/test_os.py b-3.3.0/Lib/test/test_os.py
 +++ b-3.3.0/Lib/test/test_os.py	Fri Nov 16 22:45:42 2012
 @@ -461,7 +461,11 @@
  
-             def test_large_time(self):
-                 t1 = 5000000000 # some day in 2128
--                os.utime(self.fname, (t1, t1))
-+                try:
-+                    #Note fail if time_t is 32 bit
-+                    os.utime(self.fname, (t1, t1))
-+                except OverflowError:
-+                    self.skipTest("requires at least 64-bit time_t")
-                 self.assertEqual(os.stat(self.fname).st_mtime, t1)
+     def test_large_time(self):
+         t1 = 5000000000 # some day in 2128
+-        os.utime(self.fname, (t1, t1))
++        try:
++            #Note fail if time_t is 32 bit
++            os.utime(self.fname, (t1, t1))
++        except OverflowError:
++            self.skipTest("requires at least 64-bit time_t")
+         self.assertEqual(os.stat(self.fname).st_mtime, t1)
  
-         def test_1686475(self):
+     @unittest.skipUnless(sys.platform == "win32", "Win32 specific tests")
 diff -urN a-3.3.0/Lib/test/test_sundry.py b-3.3.0/Lib/test/test_sundry.py
 --- a-3.3.0/Lib/test/test_sundry.py	Fri Nov 16 22:45:30 2012
 +++ b-3.3.0/Lib/test/test_sundry.py	Fri Nov 16 22:45:42 2012
@@ -923,15 +853,15 @@ diff -urN a-3.3.0/Makefile.pre.in b-3.3.0/Makefile.pre.in
  
  # Default target
  all:		build_all
--build_all:	$(BUILDPYTHON) $(SYSCONFIGDATA) oldsharedmods sharedmods gdbhooks Modules/_testembed
-+build_all:	$(BUILDPYTHON) $(SYSCONFIGDATA) oldsharedmods sharedmods gdbhooks _testembed$(EXE)
+-build_all:	$(BUILDPYTHON) oldsharedmods sharedmods gdbhooks Modules/_testembed python-config
++build_all:	$(BUILDPYTHON) oldsharedmods sharedmods gdbhooks _testembed$(EXE) python-config
  
  # Compile a binary with gcc profile guided optimization.
  profile-opt:
 @@ -477,7 +477,7 @@
- sharedmods: $(BUILDPYTHON) $(SYSCONFIGDATA)
- 	case $$MAKEFLAGS in *s*) quiet=-q; esac; \
+ 	esac; \
  	$(RUNSHARED) CC='$(CC)' LDSHARED='$(BLDSHARED)' OPT='$(OPT)' \
+ 		_TCLTK_INCLUDES='$(TCLTK_INCLUDES)' _TCLTK_LIBS='$(TCLTK_LIBS)' \
 -		$(PYTHON_FOR_BUILD) $(srcdir)/setup.py $$quiet build
 +		$(PYTHON_FOR_BUILD) $(srcdir)/setup.py $$quiet build @PYMOD_BUILDOPT@
  
@@ -989,9 +919,9 @@ diff -urN a-3.3.0/Makefile.pre.in b-3.3.0/Makefile.pre.in
  	$(MAINCC) -c $(PY_CORE_CFLAGS) -o $@ $(srcdir)/Modules/python.c
  
 @@ -1347,7 +1356,7 @@
- 	find build -name 'fficonfig.py' -exec rm -f {} ';' || true
+ 	find build -name '*.py[co]' -exec rm -f {} ';' || true
+ 	-rm -f pybuilddir.txt
  	-rm -f Lib/lib2to3/*Grammar*.pickle
- 	-rm -f $(SYSCONFIGDATA)
 -	-rm -f Modules/_testembed Modules/_freeze_importlib
 +	-rm -f _testembed$(EXE) Modules/_freeze_importlib
  
@@ -1236,22 +1166,24 @@ diff -urN a-3.3.0/Modules/_cursesmodule.c b-3.3.0/Modules/_cursesmodule.c
  #if !defined(HAVE_NCURSES_H) && (defined(sgi) || defined(__sun) || defined(SCO5))
  #define STRICT_SYSV_CURSES       /* Don't use ncurses extensions */
  typedef chtype attr_t;           /* No attr_t type is available */
-@@ -1693,17 +1697,31 @@
+@@ -1772,10 +1772,14 @@
      /* We have to simulate this by writing to a temporary FILE*,
         then reading back, then writing to the argument stream. */
      char fn[100];
 +#ifndef MS_WINDOWS
-     int fd;
+     int fd = -1;
 +#endif
-     FILE *fp;
-     PyObject *res;
+     FILE *fp = NULL;
+     PyObject *res = NULL;
  
 +#ifndef MS_WINDOWS
 +/* Even on unix /tmp may not exist and the program must prefer $TMPDIR ! */
      strcpy(fn, "/tmp/py.curses.putwin.XXXXXX");
      fd = mkstemp(fn);
      if (fd < 0)
-         return PyErr_SetFromErrnoWithFilename(PyExc_IOError, fn);
+@@ -1783,6 +1787,13 @@
+     if (_Py_set_inheritable(fd, 0, NULL) < 0)
+         goto exit;
      fp = fdopen(fd, "wb+");
 +#else
 +    strcpy(fn, "py.curses.putwin.XXXXXX");
@@ -1260,34 +1192,42 @@ diff -urN a-3.3.0/Modules/_cursesmodule.c b-3.3.0/Modules/_cursesmodule.c
 +        return PyErr_SetFromErrnoWithFilename(PyExc_IOError, fn);
 +    fp = fopen(fn, "wb+");
 +#endif
-+
      if (fp == NULL) {
-+    #ifndef MS_WINDOWS
+         PyErr_SetFromErrnoWithFilename(PyExc_IOError, fn);
+         goto exit;
+@@ -1807,8 +1818,10 @@
+ exit:
+     if (fp != NULL)
+         fclose(fp);
++#ifndef MS_WINDOWS
+     else if (fd != -1)
          close(fd);
-+    #endif
-         remove(fn);
-         return PyErr_SetFromErrnoWithFilename(PyExc_IOError, fn);
-     }
-@@ -2250,7 +2268,9 @@
++#endif
+     remove(fn);
+     return res;
+ }
+@@ -2331,7 +2344,9 @@
  PyCurses_GetWin(PyCursesWindowObject *self, PyObject *stream)
  {
      char fn[100];
 +#ifndef MS_WINDOWS
-     int fd;
+     int fd = -1;
 +#endif
-     FILE *fp;
+     FILE *fp = NULL;
      PyObject *data;
      size_t datalen;
-@@ -2259,13 +2279,24 @@
+@@ -2341,6 +2356,8 @@
+ 
      PyCursesInitialised;
-     _Py_IDENTIFIER(read);
  
 +#ifndef MS_WINDOWS
 +/* Even on unix /tmp may not exist and the program must prefer $TMPDIR ! */
      strcpy(fn, "/tmp/py.curses.getwin.XXXXXX");
      fd = mkstemp(fn);
      if (fd < 0)
-         return PyErr_SetFromErrnoWithFilename(PyExc_IOError, fn);
+@@ -2348,6 +2365,13 @@
+     if (_Py_set_inheritable(fd, 0, NULL) < 0)
+         goto error;
      fp = fdopen(fd, "wb+");
 +#else
 +    strcpy(fn, "py.curses.getwin.XXXXXX");
@@ -1297,12 +1237,19 @@ diff -urN a-3.3.0/Modules/_cursesmodule.c b-3.3.0/Modules/_cursesmodule.c
 +    fp = fopen(fn, "wb+");
 +#endif
      if (fp == NULL) {
-+    #ifndef MS_WINDOWS
+         PyErr_SetFromErrnoWithFilename(PyExc_IOError, fn);
+         goto error;
+@@ -2382,8 +2406,10 @@
+ error:
+     if (fp != NULL)
+         fclose(fp);
++#ifndef MS_WINDOWS
+     else if (fd != -1)
          close(fd);
-+    #endif
-         remove(fn);
-         return PyErr_SetFromErrnoWithFilename(PyExc_IOError, fn);
-     }
++#endif
+     remove(fn);
+     return res;
+ }
 diff -urN a-3.3.0/Modules/_freeze_importlib.c b-3.3.0/Modules/_freeze_importlib.c
 --- a-3.3.0/Modules/_freeze_importlib.c	Fri Nov 16 22:45:31 2012
 +++ b-3.3.0/Modules/_freeze_importlib.c	Fri Nov 16 22:45:43 2012
@@ -1626,15 +1573,6 @@ diff -urN a-3.3.0/Modules/posixmodule.c b-3.3.0/Modules/posixmodule.c
  extern char **environ;
  #endif /* !_MSC_VER */
  
-@@ -1271,7 +1300,7 @@
- static PyObject*
- win32_1str(PyObject* args, char* func,
-            char* format, BOOL (__stdcall *funcA)(LPCSTR),
--           char* wformat, BOOL (__stdcall *funcW)(LPWSTR))
-+           char* wformat, BOOL (__stdcall *funcW)(LPCWSTR))
- {
-     PyObject *uni;
-     const char *ansi;
 @@ -1398,7 +1427,7 @@
      int st_ctime_nsec;
  };
@@ -1688,28 +1626,6 @@ diff -urN a-3.3.0/Modules/readline.c b-3.3.0/Modules/readline.c
  #if defined(HAVE_SETLOCALE)
  /* GNU readline() mistakenly sets the LC_CTYPE locale.
   * This is evil.  Only the user or the app's main() should do this!
-@@ -905,6 +910,10 @@
-     /* Allow $if term= in .inputrc to work */
-     rl_terminal_name = getenv("TERM");
- #endif
-+#ifdef MS_WINDOWS
-+    /* FIXME: need more test before to skip this hack */
-+    rl_terminal_name = "dumb";
-+#endif
-     /* Force rebind of TAB to insert-tab */
-     rl_bind_key('\t', rl_insert);
-     /* Bind both ESC-TAB and ESC-ESC to the completion function */
-@@ -1176,7 +1185,10 @@
- 
- 
- 
-+#ifndef MS_WINDOWS
-+    /* FIXME: windows readline(prompt) may not work ? */
-     PyOS_ReadlineFunctionPointer = call_readline;
-+#endif
-     setup_readline();
-     return m;
- }
 diff -urN a-3.3.0/Modules/selectmodule.c b-3.3.0/Modules/selectmodule.c
 --- a-3.3.0/Modules/selectmodule.c	Fri Nov 16 22:45:30 2012
 +++ b-3.3.0/Modules/selectmodule.c	Fri Nov 16 22:45:42 2012
@@ -1737,9 +1653,12 @@ diff -urN a-3.3.0/Modules/selectmodule.c b-3.3.0/Modules/selectmodule.c
 diff -urN a-3.3.0/Modules/signalmodule.c b-3.3.0/Modules/signalmodule.c
 --- a-3.3.0/Modules/signalmodule.c	Fri Nov 16 22:45:30 2012
 +++ b-3.3.0/Modules/signalmodule.c	Fri Nov 16 22:45:42 2012
-@@ -5,8 +5,29 @@
+@@ -5,11 +5,32 @@
  
  #include "Python.h"
+ #ifndef MS_WINDOWS
+ #include "posixmodule.h"
+ #endif
  
 +#ifdef __MINGW32__
 +/* GCC 4.4+ (mingw) support posix threads!
@@ -1763,8 +1682,7 @@ diff -urN a-3.3.0/Modules/signalmodule.c b-3.3.0/Modules/signalmodule.c
 +#endif
 +
  #ifdef MS_WINDOWS
--#include <Windows.h>
-+#include <windows.h>
+ #include <windows.h>
  #ifdef HAVE_PROCESS_H
  #include <process.h>
  #endif
@@ -1911,18 +1829,6 @@ diff -urN a-3.3.0/Modules/socketmodule.h b-3.3.0/Modules/socketmodule.h
  #  define HAVE_ADDRINFO
  #  define HAVE_SOCKADDR_STORAGE
  #  define HAVE_GETADDRINFO
-diff -urN a-3.3.0/Objects/exceptions.c b-3.3.0/Objects/exceptions.c
---- a-3.3.0/Objects/exceptions.c	Fri Nov 16 22:45:31 2012
-+++ b-3.3.0/Objects/exceptions.c	Fri Nov 16 22:45:43 2012
-@@ -2327,7 +2327,7 @@
-     }
- 
- #ifdef MS_WINDOWS
--#include <Winsock2.h>
-+#include <winsock2.h>
- /* The following constants were added to errno.h in VS2010 but have
-    preferred WSA equivalents. */
- #undef EADDRINUSE
 diff -urN a-3.3.0/PC/msvcrtmodule.c b-3.3.0/PC/msvcrtmodule.c
 --- a-3.3.0/PC/msvcrtmodule.c	Fri Nov 16 22:45:31 2012
 +++ b-3.3.0/PC/msvcrtmodule.c	Fri Nov 16 22:45:43 2012
@@ -2436,12 +2342,13 @@ diff -urN a-3.3.0/configure.ac b-3.3.0/configure.ac
  ac_save_cppflags="$CPPFLAGS"
  CPPFLAGS="$CPPFLAGS -I/usr/include/ncursesw"
  AC_CHECK_HEADERS(asm/types.h conio.h curses.h direct.h dlfcn.h errno.h \
-@@ -1546,7 +1669,7 @@
+@@ -1546,8 +1669,8 @@
  sys/stat.h sys/syscall.h sys/sys_domain.h sys/termio.h sys/time.h \
  sys/times.h sys/types.h sys/uio.h sys/un.h sys/utsname.h sys/wait.h pty.h \
  libutil.h sys/resource.h netpacket/packet.h sysexits.h bluetooth.h \
--bluetooth/bluetooth.h linux/tipc.h spawn.h util.h)
-+bluetooth/bluetooth.h linux/tipc.h spawn.h util.h winsock2.h crtdbg.h)
+ bluetooth/bluetooth.h linux/tipc.h spawn.h util.h alloca.h endian.h \
+-sys/endian.h)
++sys/endian.h winsock2.h crtdbg.h)
  CPPFLAGS=$ac_save_cppflags
  AC_HEADER_DIRENT
  AC_HEADER_MAJOR
@@ -2843,23 +2750,6 @@ diff -urN a-3.3.0/configure.ac b-3.3.0/configure.ac
  AC_SUBST(SOABI)
  AC_MSG_CHECKING(ABIFLAGS)
  AC_MSG_RESULT($ABIFLAGS)
-@@ -3952,6 +4274,16 @@
- 		   SO=.${SOABI}.so;;
- 	*)	   SO=.so;;
- 	esac
-+	case $host in
-+	*-*-mingw*)
-+	#NOTE: see _PyImport_DynLoadFiletab in dynload_win.c
-+	if test "x$Py_DEBUG" = xtrue; then
-+		SO=_d.pyd
-+	else
-+		SO=.pyd
-+	fi
-+	;;
-+	esac
- else
- 	# this might also be a termcap variable, see #610332
- 	echo
 @@ -4025,9 +4357,9 @@
    if test $py_cv_lib_readline = yes; then
      break
